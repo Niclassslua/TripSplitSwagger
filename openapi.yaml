@@ -1,0 +1,612 @@
+openapi: 3.0.3
+info:
+  title: TripSplit API (MVP)
+  version: 0.2.0
+servers:
+  - url: https://api.tripsplit.app
+security:
+  - bearerAuth: []
+tags:
+  - name: Groups
+  - name: Members
+  - name: Expenses
+  - name: Settlements
+  - name: Balances
+  - name: Invites
+  - name: Users
+  - name: Payments
+  - name: Meta
+
+paths:
+  /health:
+    get:
+      tags: [Meta]
+      summary: Health check
+      responses: { "200": { description: OK } }
+
+  /auth/login:
+    post:
+      tags: [Users]
+      summary: Exchange credentials for JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string }
+                phone: { type: string }
+      responses: { "200": { description: Updated } }
+
+  /users/me/payment-methods:
+    get:
+      tags: [Payments]
+      summary: Get my payment preferences
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethods'
+    patch:
+      tags: [Payments]
+      summary: Update my payment preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethods'
+      responses: { "200": { description: Updated } }
+
+  /groups:
+    get:
+      tags: [Groups]
+      summary: List groups I belong to
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Group' }
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+    post:
+      tags: [Groups]
+      summary: Create group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, baseCurrency]
+              properties:
+                name: { type: string }
+                baseCurrency: { type: string, example: EUR }
+      responses:
+        "201":
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+
+  /groups/{groupId}:
+    get:
+      tags: [Groups]
+      summary: Get group details
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Group' }
+    patch:
+      tags: [Groups]
+      summary: Update group
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                baseCurrency: { type: string }
+      responses: { "200": { description: OK } }
+    delete:
+      tags: [Groups]
+      summary: Close group (no new members/expenses)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses: { "204": { description: Closed } }
+
+  /groups/{groupId}/members:
+    get:
+      tags: [Members]
+      summary: List members
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items: { $ref: '#/components/schemas/Member' }
+    post:
+      tags: [Members]
+      summary: Add member by userId or email
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [userId]
+                  properties: { userId: { $ref: '#/components/schemas/Id' } }
+                - type: object
+                  required: [email]
+                  properties: { email: { type: string, format: email } }
+      responses: { "201": { description: Member added } }
+
+  /groups/{groupId}/members/{memberId}:
+    patch:
+      tags: [Members]
+      summary: Update member (role)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/MemberId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [owner, admin, member] }
+      responses: { "200": { description: Updated } }
+    delete:
+      tags: [Members]
+      summary: Remove member from group
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/MemberId'
+      responses: { "204": { description: Removed } }
+
+  /groups/{groupId}/invite-link:
+    get:
+      tags: [Invites]
+      summary: Get permanent invite link
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: Current invite link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLink'
+    patch:
+      tags: [Invites]
+      summary: Enable/disable invite link
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteLink' }
+    post:
+      tags: [Invites]
+      summary: Rotate invite code (invalidate previous)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: Rotated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteLink' }
+
+  /invites/{code}:
+    get:
+      tags: [Invites]
+      summary: Preview invite (for "Join group?" dialog)
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  groupPreview:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      membersCount: { type: integer }
+                      avatarUrl: { type: string, nullable: true }
+
+  /invites/accept:
+    post:
+      tags: [Invites]
+      summary: Accept permanent invite code (adds current user as member)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200":
+          description: Joined or already member
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group: { $ref: '#/components/schemas/Group' }
+                  member: { $ref: '#/components/schemas/Member' }
+                  status: { type: string, enum: [joined, already_member, link_disabled] }
+
+  /groups/{groupId}/expenses:
+    get:
+      tags: [Expenses]
+      summary: List expenses in group
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Expense' }
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+    post:
+      tags: [Expenses]
+      summary: Create expense with split
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseCreate'
+      responses:
+        "201":
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expense: { $ref: '#/components/schemas/Expense' }
+                  splits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SplitPortion'
+
+  /groups/{groupId}/expenses/{expenseId}:
+    patch:
+      tags: [Expenses]
+      summary: Update expense (title, occurredAt)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/ExpenseId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                occurredAt: { type: string, format: date-time }
+      responses: { "200": { description: Updated } }
+    delete:
+      tags: [Expenses]
+      summary: Delete expense
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/ExpenseId'
+      responses: { "204": { description: Deleted } }
+
+  /groups/{groupId}/balances:
+    get:
+      tags: [Balances]
+      summary: Compute net balance per member
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: Net balances by member
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balances:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        memberId: { $ref: '#/components/schemas/Id' }
+                        amountMinor: { $ref: '#/components/schemas/MoneyMinor' } # positive = is owed
+
+  /groups/{groupId}/settlements:
+    get:
+      tags: [Settlements]
+      summary: List settlements (payments to settle debts)
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Settlement' }
+    post:
+      tags: [Settlements]
+      summary: Record a settlement payment between two members
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromMemberId, toMemberId, amountMinor, currencyCode]
+              properties:
+                fromMemberId: { $ref: '#/components/schemas/Id' }
+                toMemberId: { $ref: '#/components/schemas/Id' }
+                amountMinor: { $ref: '#/components/schemas/MoneyMinor' }
+                currencyCode: { type: string, example: EUR }
+                method: { type: string, enum: [cash, bank_transfer, paypal] }
+                note: { type: string }
+      responses:
+        "201":
+          description: Settlement recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    GroupId:
+      in: path
+      name: groupId
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    MemberId:
+      in: path
+      name: memberId
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ExpenseId:
+      in: path
+      name: expenseId
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  schemas:
+    Id: { type: string, format: uuid }
+    MoneyMinor: { type: integer, minimum: 0, description: Amount in cents }
+
+    User:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        phone: { type: string, nullable: true }
+
+    PaymentMethods:
+      type: object
+      properties:
+        paypalMe: { type: string, nullable: true, example: "https://paypal.me/niclas" }
+        iban: { type: string, nullable: true, example: "DE89 3704 0044 0532 0130 00" }
+        other: { type: string, nullable: true }
+
+    Group:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        baseCurrency: { type: string }
+        closed: { type: boolean, default: false }
+        createdAt: { type: string, format: date-time }
+
+    Member:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        userId: { $ref: '#/components/schemas/Id' }
+        groupId: { $ref: '#/components/schemas/Id' }
+        role: { type: string, enum: [owner, admin, member] }
+        paymentMethods: { $ref: '#/components/schemas/PaymentMethods' }
+
+    Expense:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        groupId: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        amountMinor: { $ref: '#/components/schemas/MoneyMinor' }
+        currencyCode: { type: string }
+        payerMemberId: { $ref: '#/components/schemas/Id' }
+        occurredAt: { type: string, format: date-time }
+        createdBy: { $ref: '#/components/schemas/Id' }
+
+    ExpenseCreate:
+      type: object
+      required: [title, amountMinor, payerMemberId, split]
+      properties:
+        title: { type: string }
+        amountMinor: { $ref: '#/components/schemas/MoneyMinor' }
+        currencyCode: { type: string, example: EUR }
+        payerMemberId: { $ref: '#/components/schemas/Id' }
+        occurredAt: { type: string, format: date-time }
+        split:
+          oneOf:
+            - $ref: '#/components/schemas/SplitEqual'
+            - $ref: '#/components/schemas/SplitFixed'
+            - $ref: '#/components/schemas/SplitPercent'
+
+    SplitPortion:
+      type: object
+      properties:
+        memberId: { $ref: '#/components/schemas/Id' }
+        amountMinor: { $ref: '#/components/schemas/MoneyMinor' }
+
+    SplitEqual:
+      type: object
+      required: [type, participants]
+      properties:
+        type: { type: string, enum: [equal] }
+        participants:
+          type: array
+          items: { $ref: '#/components/schemas/Id' }
+
+    SplitFixed:
+      type: object
+      required: [type, amounts]
+      properties:
+        type: { type: string, enum: [individual_fix] }
+        amounts:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/MoneyMinor' }
+          description: memberId -> amountMinor
+
+    SplitPercent:
+      type: object
+      required: [type, percentages]
+      properties:
+        type: { type: string, enum: [individual_percent] }
+        percentages:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 100
+          description: memberId -> percent (0..100)
+
+    Settlement:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        groupId: { $ref: '#/components/schemas/Id' }
+        fromMemberId: { $ref: '#/components/schemas/Id' }
+        toMemberId: { $ref: '#/components/schemas/Id' }
+        amountMinor: { $ref: '#/components/schemas/MoneyMinor' }
+        currencyCode: { type: string }
+        method: { type: string, enum: [cash, bank_transfer, paypal] }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    InviteLink:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        code: { type: string }
+        url: { type: string }
