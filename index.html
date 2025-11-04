@@ -8,7 +8,7 @@
     <style>
       body {
         margin: 0;
-        background: #EDEFF1;
+        background: #ffffff;
         color: #000000;
       }
       #swagger { 
@@ -17,38 +17,14 @@
       }
       .topbar { display: none; }
 
-      /* Light Mode specific */
-      @media (prefers-color-scheme: light) {
-        body {
-          background: #EDEFF1;
-          color: #000000;
-        }
-        .swagger-ui, .swagger-ui .info, .swagger-ui .markdown, .swagger-ui .opblock {
-          background-color: #EDEFF1 !important;
-          color: #000000 !important;
-        }
-        .swagger-ui .btn, .swagger-ui .authorize {
-          background-color: #f5f5f5 !important;
-          color: #111111 !important;
-          border: 1px solid #ccc !important;
-        }
+      .swagger-ui, .swagger-ui .info, .swagger-ui .markdown, .swagger-ui .opblock {
+        background-color: #ffffff !important;
+        color: #000000 !important;
       }
-
-      /* Dark Mode specific */
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: #0b1020;
-          color: #EDEFF1;
-        }
-        .swagger-ui, .swagger-ui .info, .swagger-ui .markdown, .swagger-ui .opblock {
-          background-color: #0b1020 !important;
-          color: #EDEFF1 !important;
-        }
-        .swagger-ui .btn, .swagger-ui .authorize {
-          background-color: #1a1f2e !important;
-          color: #ddd !important;
-          border: 1px solid #444 !important;
-        }
+      .swagger-ui .btn, .swagger-ui .authorize {
+        background-color: #f5f5f5 !important;
+        color: #111111 !important;
+        border: 1px solid #ccc !important;
       }
     </style>
   </head>
